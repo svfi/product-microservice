@@ -1,8 +1,10 @@
 import asyncio
+import secrets
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, status, Request
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from loguru import logger
 from sqlalchemy import URL
 from sqlmodel import create_engine, Session, SQLModel
@@ -44,6 +46,26 @@ def get_session():
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
+security = HTTPBasic()
+CredentialsDep = Annotated[HTTPBasicCredentials, Depends(security)]
+
+
+def get_current_username(credentials: CredentialsDep):
+    current_username_bytes = credentials.username.encode("utf8")
+    current_password_bytes = credentials.password.encode("utf8")
+
+    are_credentials_same = secrets.compare_digest(current_username_bytes, current_password_bytes)
+
+    if are_credentials_same:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Incorrect username or password",
+                            headers={"WWW-Authenticate": "Basic"})
+
+    return credentials.username
+
+
+UserDep = Annotated[str, Depends(get_current_username)]
+
 app = FastAPI()
 
 
@@ -59,7 +81,7 @@ async def product_not_found_error_handler(_: Request, exc: ProductNotFoundError)
 
 
 @app.post('/products/', response_model=ProductPublic, status_code=status.HTTP_202_ACCEPTED)
-def create_product(product: ProductCreate, session: SessionDep, background_tasks: BackgroundTasks):
+def create_product(product: ProductCreate, session: SessionDep, _: UserDep, background_tasks: BackgroundTasks):
     db_product = db.create_product(product, session)
     product_public = ProductPublic(**db_product.model_dump())
     background_tasks.add_task(register_product, product_public, settings.offers_service_refresh_token,
@@ -73,12 +95,12 @@ def read_product(product_id: UUID, session: SessionDep):
 
 
 @app.put('/products/{product_id}', response_model=ProductPublic, status_code=status.HTTP_200_OK)
-def update_product(product_id: UUID, product: ProductUpdate, session: SessionDep):
+def update_product(product_id: UUID, product: ProductUpdate, session: SessionDep, _: UserDep):
     return db.update_product(product_id, product, session)
 
 
 @app.delete('/products/{product_id}', status_code=status.HTTP_204_NO_CONTENT)
-def delete_product(product_id: UUID, session: SessionDep):
+def delete_product(product_id: UUID, session: SessionDep, _: UserDep):
     db.delete_product(product_id, session)
 
 

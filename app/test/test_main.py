@@ -12,6 +12,9 @@ from ..product.db import update_product_offers
 
 PRODUCTS_PATH = '/products'
 
+CREDENTIALS = ('user', 'is-great')
+INVALID_CREDENTIALS = ('user', 'user')
+
 PRODUCT_NAME1 = 'product1'
 PRODUCT_DESCRIPTION1 = 'something'
 PRODUCT_CREATE_DATA1 = {'name': PRODUCT_NAME1, 'description': PRODUCT_DESCRIPTION1}
@@ -59,7 +62,7 @@ client = TestClient(app)
 
 
 def test_create_product():
-    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_DATA1)
+    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_DATA1, auth=CREDENTIALS)
     assert response.status_code == status.HTTP_202_ACCEPTED
 
     data = response.json()
@@ -68,13 +71,18 @@ def test_create_product():
     assert data['description'] == PRODUCT_DESCRIPTION1
 
 
+def test_create_product_invalid_credentials():
+    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_DATA1, auth=INVALID_CREDENTIALS)
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
 def test_create_invalid_product():
-    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_INVALID_DATA)
+    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_INVALID_DATA, auth=CREDENTIALS)
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
 def test_read_product():
-    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_DATA1)
+    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_DATA1, auth=CREDENTIALS)
     assert response.status_code == status.HTTP_202_ACCEPTED
 
     data = response.json()
@@ -95,13 +103,13 @@ def test_read_invalid_product():
 
 
 def test_update_product():
-    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_DATA1)
+    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_DATA1, auth=CREDENTIALS)
     assert response.status_code == status.HTTP_202_ACCEPTED
 
     data = response.json()
     product_id = data['id']
 
-    response = client.put(f'{PRODUCTS_PATH}/{product_id}', json=PRODUCT_CREATE_DATA2)
+    response = client.put(f'{PRODUCTS_PATH}/{product_id}', json=PRODUCT_CREATE_DATA2, auth=CREDENTIALS)
     assert response.status_code == status.HTTP_200_OK
 
     data = response.json()
@@ -111,13 +119,13 @@ def test_update_product():
 
 
 def test_delete_product():
-    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_DATA1)
+    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_DATA1, auth=CREDENTIALS)
     assert response.status_code == status.HTTP_202_ACCEPTED
 
     data = response.json()
     product_id = data['id']
 
-    response = client.delete(f'{PRODUCTS_PATH}/{product_id}')
+    response = client.delete(f'{PRODUCTS_PATH}/{product_id}', auth=CREDENTIALS)
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
     response = client.get(f'{PRODUCTS_PATH}/{product_id}')
@@ -128,12 +136,12 @@ def test_delete_invalid_product():
     response = client.get(f'{PRODUCTS_PATH}/{SOME_RANDOM_UUID}')
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    response = client.delete(f'{PRODUCTS_PATH}/{SOME_RANDOM_UUID}')
+    response = client.delete(f'{PRODUCTS_PATH}/{SOME_RANDOM_UUID}', auth=CREDENTIALS)
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
 
 def test_read_product_offers(session):
-    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_DATA1)
+    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_DATA1, auth=CREDENTIALS)
     assert response.status_code == status.HTTP_202_ACCEPTED
 
     data = response.json()
@@ -155,7 +163,7 @@ def test_read_product_offers(session):
 
 def test_update_product_with_offers(session):
     """Test update of product with offers to see if the offers will be still linked to the product after the update."""
-    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_DATA1)
+    response = client.post(PRODUCTS_PATH, json=PRODUCT_CREATE_DATA1, auth=CREDENTIALS)
     assert response.status_code == status.HTTP_202_ACCEPTED
 
     data = response.json()
@@ -164,7 +172,7 @@ def test_update_product_with_offers(session):
     offers = [OFFER1, OFFER2]
     update_product_offers(UUID(product_id), offers, session)
 
-    response = client.put(f'{PRODUCTS_PATH}/{product_id}', json=PRODUCT_CREATE_DATA2)
+    response = client.put(f'{PRODUCTS_PATH}/{product_id}', json=PRODUCT_CREATE_DATA2, auth=CREDENTIALS)
     assert response.status_code == status.HTTP_200_OK
 
     response = client.get(f'{PRODUCTS_PATH}/{product_id}/offers')
