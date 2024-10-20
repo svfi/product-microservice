@@ -1,6 +1,7 @@
+from typing import Sequence
 from uuid import UUID
 
-from sqlmodel import Session
+from sqlmodel import select, Session
 
 from .error import ProductNotFoundError
 from .model import Product, ProductCreate, ProductUpdate
@@ -23,6 +24,10 @@ def read_product(product_id: UUID, session: Session) -> Product:
         raise ProductNotFoundError(f'Product with ID {product_id} does not exist')
 
     return db_product
+
+
+def read_products(session: Session) -> Sequence[Product]:
+    return session.exec(select(Product)).all()
 
 
 def update_product(product_id: UUID, product: ProductUpdate, session: Session) -> Product:
