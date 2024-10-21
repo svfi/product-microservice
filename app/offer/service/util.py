@@ -1,3 +1,5 @@
+"""Utility functions to support interaction with the 3rd party offer microservice."""
+
 from uuid import UUID
 
 import httpx
@@ -30,7 +32,18 @@ def _renew_access_token(refresh_token: str, base_url: str) -> AccessToken | None
 
 
 def _send_request(refresh_token: str, base_url: str, session: Session, retries=3, **kwargs) -> httpx.Response:
-    """Sends an HTTP request with a loaded/fetched up-to-date access token in the headers."""
+    """
+    Sends an HTTP request with a loaded/fetched up-to-date access token in the headers.
+
+    :param refresh_token: refresh token used to generate the access token
+    :param base_url: base url for access token generation
+    :param session: database session
+    :param retries: number of retries for how many times to try to send the request
+    :keyword **kwargs: keyword arguments passed to `httpx.request` performing the actual request
+    :return: httpx.Response
+    :raises RuntimeError: if the action was not successful after all retries
+    """
+
     for _ in range(retries):
         # read access token from database
         access_token = read_token(session)
